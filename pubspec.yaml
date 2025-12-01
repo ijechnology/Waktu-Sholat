@@ -1,0 +1,54 @@
+name: praytime
+description: A new Flutter project.
+
+publish_to: 'none'
+
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+
+# --- DEPENDENCIES ---
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # --- UI ---
+  cupertino_icons: ^1.0.2 # Ikon bawaan
+  google_fonts: ^6.1.0 # Font kustom
+  
+  # --- State Management ---
+  provider: ^6.0.5 # Untuk manajemen state
+  
+  # --- Local Storage (Session) ---
+  hive: ^2.2.3
+  hive_flutter: ^1.1.0
+  path_provider: ^2.0.11 # Dibutuhkan oleh Hive
+
+  # --- Networking ---
+  http: ^1.1.0 # Untuk memanggil API
+  
+  # --- Utility ---
+  intl: ^0.18.1 # Untuk format tanggal dan angka
+
+  # --- Notifikasi ---
+  flutter_local_notifications: ^17.0.0
+  
+  # --- LBS (Location) ---
+  geolocator: ^11.0.0
+  geocoding: ^3.0.0
+  hijri : ^3.0.0
+  table_calendar: ^3.0.9
+  flutter_compass: ^0.8.1
+  
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+
+  flutter_lints: ^3.0.0
+
+
+flutter:
+  uses-material-design: true
+  assets:
+   - assets/images/
