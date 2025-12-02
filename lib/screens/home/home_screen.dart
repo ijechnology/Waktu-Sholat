@@ -8,6 +8,7 @@ import 'package:intl/intl.dart';
 import '../../providers/prayer_provider.dart';
 import '../../models/prayer_times_model.dart';
 import '../home/qibla_screen.dart';
+import 'nearest_mosque_page.dart';
 
 class TopToast extends StatefulWidget {
   final String message;
@@ -319,41 +320,47 @@ class _HomeScreenState extends State<HomeScreen> {
 
             const SizedBox(height: 8),
 
-            // --- PENCARIAN KOTA & LBS (dengan label pada ikon) ---
+            // --- 2. PENCARIAN KOTA (BARIS SENDIRI) ---
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16.0),
+              child: TextField(
+                controller: _cityController,
+                style: GoogleFonts.inter(color: textColor),
+                decoration: InputDecoration(
+                  hintText: 'Cari kota lain...',
+                  prefixIcon: Icon(Icons.search, color: Colors.grey[500]),
+                  contentPadding:
+                      const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  filled: true,
+                  fillColor: Theme.of(context).colorScheme.background,
+                ),
+                onSubmitted: (value) => _searchCity(),
+              ),
+            ),
+
+            const SizedBox(height: 10), // Jarak antara Search Bar dan Menu
+
+            // --- 3. MENU CEPAT (LOKASI, KIBLAT, MASJID) ---
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16.0),
               child: Row(
+                mainAxisAlignment:
+                    MainAxisAlignment.spaceEvenly, // Agar jarak antar ikon rapi
                 children: [
-                  Expanded(
-                    child: TextField(
-                      controller: _cityController,
-                      style: GoogleFonts.inter(color: textColor),
-                      decoration: InputDecoration(
-                        hintText: 'Cari kota lain...',
-                        prefixIcon: Icon(Icons.search, color: Colors.grey[500]),
-                        contentPadding: const EdgeInsets.symmetric(
-                            vertical: 14, horizontal: 16),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        filled: true,
-                        fillColor: Theme.of(context).colorScheme.background,
-                      ),
-                      onSubmitted: (value) => _searchCity(),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  // Icon + label: Refresh Location
+                  // Menu 1: Lokasi
                   _buildIconWithLabel(
                     icon: Icons.my_location,
-                    label: 'Lokasi',
+                    label: 'Lokasi Saya',
                     onTap: _fetchByLocation,
                     tooltip: 'Gunakan Lokasi Saat Ini',
                     semanticLabel: 'Perbarui lokasi saat ini',
                     color: primaryAccent,
                   ),
-                  const SizedBox(width: 6),
-                  // Icon + label: Qibla / kompas
+
+                  // Menu 2: Kiblat
                   _buildIconWithLabel(
                     icon: Icons.explore,
                     label: 'Kiblat',
@@ -367,10 +374,28 @@ class _HomeScreenState extends State<HomeScreen> {
                     semanticLabel: 'Buka arah kiblat',
                     color: primaryAccent,
                   ),
+
+                  // Menu 3: Masjid (FITUR BARU)
+                  _buildIconWithLabel(
+                    icon: Icons.mosque, // Icon Masjid
+                    label: 'Masjid Terdekat',
+                    onTap: () {
+                      // Pastikan kamu sudah membuat class NearestMosquePage dr jawaban sebelumnya
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                            builder: (context) => NearestMosquePage()),
+                      );
+                    },
+                    tooltip: 'Masjid Terdekat',
+                    semanticLabel: 'Cari masjid terdekat',
+                    color: primaryAccent,
+                  ),
                 ],
               ),
             ),
-            const SizedBox(height: 16),
+
+            const SizedBox(height: 10),
 
             // --- DAFTAR JADWAL HARI INI ---
             Padding(

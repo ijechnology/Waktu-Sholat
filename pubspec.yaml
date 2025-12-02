@@ -43,6 +43,7 @@ dependencies:
   get: ^4.7.3
   package_info_plus: ^9.0.0
   image_picker: ^1.0.7
+  google_maps_flutter: ^2.5.0
 
   
 dev_dependencies:
