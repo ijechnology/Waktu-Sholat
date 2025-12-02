@@ -12,14 +12,13 @@ import 'providers/prayer_provider.dart';
 import 'providers/zakat_provider.dart';
 // --- PERUBAHAN ---
 import 'providers/calendar_provider.dart'; // Ganti dari TimezoneProvider
-import 'providers/quran_provider.dart';   // Tambah QuranProvider
+import 'providers/quran_provider.dart'; // Tambah QuranProvider
 // --- AKHIR PERUBAHAN ---
 
 // Import screen
 import 'screens/splash_screen.dart';
 import 'screens/auth/login_screen.dart';
 import 'screens/main_screen.dart';
-
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -36,20 +35,19 @@ class PrayTimeApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    
     // Tema "Soft Green & Peach" (Tidak berubah)
     final ThemeData theme = ThemeData(
       brightness: Brightness.light,
       scaffoldBackgroundColor: Colors.white,
       primaryColor: const Color(0xFF3A6F43),
       colorScheme: const ColorScheme.light(
-        primary: Color(0xFF3A6F43), 
-        secondary: Color(0xFF59AC77), 
+        primary: Color(0xFF3A6F43),
+        secondary: Color(0xFF59AC77),
         background: Colors.white,
-        surface: Color(0xFFFFD5D5), 
-        error: Color(0xFFFDAAAA), 
-        onPrimary: Colors.white, 
-        onSurface: Color(0xFF1F2937), 
+        surface: Color(0xFFCFE8D6),
+        error: Color(0xFFFDAAAA),
+        onPrimary: Colors.white,
+        onSurface: Color(0xFF1F2937),
         onBackground: Color(0xFF1F2937),
       ),
       textTheme: GoogleFonts.interTextTheme(
@@ -82,7 +80,7 @@ class PrayTimeApp extends StatelessWidget {
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
           ),
-          elevation: 0, 
+          elevation: 0,
           textStyle: GoogleFonts.inter(
             fontWeight: FontWeight.bold,
             fontSize: 16,
@@ -115,13 +113,15 @@ class PrayTimeApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => PrayerProvider()),
         ChangeNotifierProvider(create: (_) => ZakatProvider()),
         // --- PERUBAHAN ---
-        ChangeNotifierProvider(create: (_) => CalendarProvider()), // Ganti TimezoneProvider
-        ChangeNotifierProvider(create: (_) => QuranProvider()),   // Tambah QuranProvider
+        ChangeNotifierProvider(
+            create: (_) => CalendarProvider()), // Ganti TimezoneProvider
+        ChangeNotifierProvider(
+            create: (_) => QuranProvider()), // Tambah QuranProvider
         // --- AKHIR PERUBAHAN ---
       ],
       child: MaterialApp(
         title: 'PrayTime',
-        theme: theme, 
+        theme: theme,
         debugShowCheckedModeBanner: false,
         home: const SplashScreen(),
         routes: {

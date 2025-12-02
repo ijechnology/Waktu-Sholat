@@ -1,11 +1,109 @@
+// lib/views/home/home_screen.dart
+import 'dart:async';
+import 'dart:ui'; // for FontFeature
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
-import 'dart:async';
 import '../../providers/prayer_provider.dart';
 import '../../models/prayer_times_model.dart';
 import '../home/qibla_screen.dart';
+
+class TopToast extends StatefulWidget {
+  final String message;
+  final VoidCallback onDismiss;
+
+  const TopToast({
+    Key? key,
+    required this.message,
+    required this.onDismiss,
+  }) : super(key: key);
+
+  @override
+  State<TopToast> createState() => _TopToastState();
+}
+
+class _TopToastState extends State<TopToast>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<Offset> _slide;
+  late Animation<double> _fade;
+
+  @override
+  void initState() {
+    super.initState();
+
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 280),
+    );
+
+    _slide = Tween(begin: const Offset(0, -1), end: Offset.zero)
+        .animate(CurvedAnimation(
+      parent: _controller,
+      curve: Curves.easeOut,
+    ));
+
+    _fade = Tween(begin: 0.0, end: 1.0).animate(_controller);
+
+    _controller.forward();
+
+    Future.delayed(const Duration(milliseconds: 1500), () {
+      if (mounted) {
+        _controller.reverse().then((_) => widget.onDismiss());
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return SafeArea(
+      child: SlideTransition(
+        position: _slide,
+        child: FadeTransition(
+          opacity: _fade,
+          child: Container(
+            margin: const EdgeInsets.symmetric(horizontal: 20),
+            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 25),
+            decoration: BoxDecoration(
+              color: const Color(0xFF3A6F43),
+              borderRadius: BorderRadius.circular(14),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.18),
+                  blurRadius: 12,
+                  offset: const Offset(0, 4),
+                )
+              ],
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.check_circle, color: Colors.white, size: 20),
+                const SizedBox(width: 20),
+                Expanded(
+                  child: Text(
+                    widget.message,
+                    style: GoogleFonts.inter(
+                      color: Colors.white,
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
 
 class HomeScreen extends StatefulWidget {
   @override
@@ -13,10 +111,14 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  final int _numPages = 6;
+  final int _numPages = 2;
   final PageController _pageController = PageController(viewportFraction: 0.9);
   int _currentPage = 0;
   final TextEditingController _cityController = TextEditingController();
+
+  // state to trigger visual feedback when location updated
+  bool _locationUpdated = false;
+  Timer? _locationHighlightTimer;
 
   @override
   void initState() {
@@ -32,23 +134,75 @@ class _HomeScreenState extends State<HomeScreen> {
   void dispose() {
     _pageController.dispose();
     _cityController.dispose();
+    _locationHighlightTimer?.cancel();
     super.dispose();
   }
 
-  // --- (Fungsi _searchCity, _fetchByLocation, _findNextPrayer, _formatDuration tidak berubah) ---
-  void _searchCity() {
-    if (_cityController.text.isNotEmpty) {
-      Provider.of<PrayerProvider>(context, listen: false)
-          .fetchPrayerTimesByCity(_cityController.text);
-      FocusScope.of(context).unfocus();
+  void _showSnackBar(String message) {
+    final overlay = Overlay.of(context);
+    late OverlayEntry entry;
+
+    entry = OverlayEntry(
+      builder: (context) => Positioned(
+        top: 0,
+        left: 0,
+        right: 0,
+        child: TopToast(
+          message: message,
+          onDismiss: () => entry.remove(),
+        ),
+      ),
+    );
+
+    overlay.insert(entry);
+  }
+
+  void _triggerLocationHighlight() {
+    // set highlight true for a short time so card shows a distinct background
+    setState(() {
+      _locationUpdated = true;
+    });
+    _locationHighlightTimer?.cancel();
+    _locationHighlightTimer = Timer(const Duration(milliseconds: 800), () {
+      if (mounted) {
+        setState(() {
+          _locationUpdated = false;
+        });
+      }
+    });
+  }
+
+  void _searchCity() async {
+    final query = _cityController.text.trim();
+    if (query.isNotEmpty) {
+      try {
+        await Provider.of<PrayerProvider>(context, listen: false)
+            .fetchPrayerTimesByCity(query);
+        _cityController.clear();
+        FocusScope.of(context).unfocus();
+        _triggerLocationHighlight();
+        _showSnackBar('Lokasi diperbarui: $query');
+      } catch (e) {
+        _showSnackBar('Gagal mencari lokasi: $query');
+      }
+    } else {
+      _showSnackBar('Masukkan nama kota untuk mencari');
     }
   }
 
-  void _fetchByLocation() {
-    Provider.of<PrayerProvider>(context, listen: false)
-        .fetchPrayerTimesByCurrentLocation();
-    _cityController.clear();
-    FocusScope.of(context).unfocus();
+  void _fetchByLocation() async {
+    try {
+      await Provider.of<PrayerProvider>(context, listen: false)
+          .fetchPrayerTimesByCurrentLocation();
+      _cityController.clear();
+      FocusScope.of(context).unfocus();
+      _triggerLocationHighlight();
+      final currentCity =
+          Provider.of<PrayerProvider>(context, listen: false).currentCity;
+      _showSnackBar('Lokasi diperbarui: $currentCity');
+    } catch (e) {
+      _showSnackBar('Gagal mengambil lokasi saat ini');
+    }
   }
 
   Map<String, dynamic> _findNextPrayer(PrayerTimes? prayerTimes, DateTime now) {
@@ -97,7 +251,6 @@ class _HomeScreenState extends State<HomeScreen> {
     final seconds = d.inSeconds.remainder(60).toString().padLeft(2, '0');
     return '$hours:$minutes:$seconds';
   }
-  // --- AKHIR FUNGSI LAMA ---
 
   @override
   Widget build(BuildContext context) {
@@ -126,12 +279,12 @@ class _HomeScreenState extends State<HomeScreen> {
         child: Column(
           children: [
             // --- 1. KARTU GESER (PAGEVIEW) DIPERBARUI ---
-            Container(
+            SizedBox(
               height: 180,
               child: PageView(
                 controller: _pageController,
                 children: [
-                  // Kartu 1: Hitungan Mundur (Tidak berubah)
+                  // Kartu 1: Hitungan Mundur
                   _buildCountdownCard(
                       prayerProvider,
                       nextPrayerName,
@@ -139,29 +292,9 @@ class _HomeScreenState extends State<HomeScreen> {
                       countdown,
                       primaryAccent,
                       secondaryAccent),
-                  // Kartu 2: Info Lokasi & Tanggal (Tidak berubah)
+                  // Kartu 2: Info Lokasi & Tanggal (animated on location change)
                   _buildLocationCard(
                       prayerProvider, textColor, secondaryTextColor, cardColor),
-
-                  // --- KARTU-KARTU JAM DUNIA SEKARANG MENGGUNAKAN ASET LOKAL ---
-                  // Kartu 3: Jam Jakarta (WIB)
-                  _buildWorldClockCard('Jakarta (WIB)', prayerProvider.wibTime,
-                      'assets/images/jakarta.jpg' // <-- GANTI DARI URL KE ASET
-                      ),
-                  // Kartu 4: Jam Makassar (WITA)
-                  _buildWorldClockCard(
-                      'Makassar (WITA)',
-                      prayerProvider.witaTime,
-                      'assets/images/makassar.jpg' // <-- GANTI DARI URL KE ASET
-                      ),
-                  // Kartu 5: Jam Jayapura (WIT)
-                  _buildWorldClockCard('Jayapura (WIT)', prayerProvider.witTime,
-                      'assets/images/jayapura.jpg' // <-- GANTI DARI URL KE ASET
-                      ),
-                  // Kartu 6: Jam London
-                  _buildWorldClockCard('London', prayerProvider.londonTime,
-                      'assets/images/london.jpg' // <-- GANTI DARI URL KE ASET
-                      ),
                 ],
               ),
             ),
@@ -173,7 +306,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   width: 8.0,
                   height: 8.0,
                   margin: const EdgeInsets.symmetric(
-                      vertical: 10.0, horizontal: 2.0),
+                      vertical: 10.0, horizontal: 6.0),
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
                     color: _currentPage == index
@@ -183,9 +316,10 @@ class _HomeScreenState extends State<HomeScreen> {
                 );
               }),
             ),
-            // --- AKHIR PERUBAHAN ---
 
-            // --- PENCARIAN KOTA & LBS ---
+            const SizedBox(height: 8),
+
+            // --- PENCARIAN KOTA & LBS (dengan label pada ikon) ---
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16.0),
               child: Row(
@@ -199,77 +333,44 @@ class _HomeScreenState extends State<HomeScreen> {
                         prefixIcon: Icon(Icons.search, color: Colors.grey[500]),
                         contentPadding: const EdgeInsets.symmetric(
                             vertical: 14, horizontal: 16),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        filled: true,
+                        fillColor: Theme.of(context).colorScheme.background,
                       ),
                       onSubmitted: (value) => _searchCity(),
                     ),
                   ),
-                  const SizedBox(width: 10),
-                  IconButton(
-                    icon: Icon(Icons.my_location, color: primaryAccent),
-                    iconSize: 28,
-                    onPressed: _fetchByLocation,
+                  const SizedBox(width: 8),
+                  // Icon + label: Refresh Location
+                  _buildIconWithLabel(
+                    icon: Icons.my_location,
+                    label: 'Lokasi',
+                    onTap: _fetchByLocation,
                     tooltip: 'Gunakan Lokasi Saat Ini',
+                    semanticLabel: 'Perbarui lokasi saat ini',
+                    color: primaryAccent,
                   ),
-                  IconButton(
-                    icon: Icon(Icons.arrow_forward_ios_rounded,
-                        color: primaryAccent, size: 24),
-                    onPressed: _searchCity,
-                    tooltip: 'Cari',
+                  const SizedBox(width: 6),
+                  // Icon + label: Qibla / kompas
+                  _buildIconWithLabel(
+                    icon: Icons.explore,
+                    label: 'Kiblat',
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (context) => QiblaScreen()),
+                      );
+                    },
+                    tooltip: 'Arah Kiblat',
+                    semanticLabel: 'Buka arah kiblat',
+                    color: primaryAccent,
                   ),
                 ],
               ),
             ),
             const SizedBox(height: 16),
-
-// --- TOMBOL KIBLAT ---
-            GestureDetector(
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => QiblaScreen()),
-                );
-              },
-              child: Container(
-                padding: EdgeInsets.symmetric(vertical: 18, horizontal: 20),
-                decoration: BoxDecoration(
-                  color: cardColor,
-                  borderRadius: BorderRadius.circular(16),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.05),
-                      blurRadius: 8,
-                      offset: Offset(0, 3),
-                    )
-                  ],
-                ),
-                child: Row(
-                  children: [
-                    Container(
-                      padding: EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: Theme.of(context).primaryColor.withOpacity(0.15),
-                        shape: BoxShape.circle,
-                      ),
-                      child:
-                          Icon(Icons.explore, color: primaryAccent, size: 28),
-                    ),
-                    SizedBox(width: 16),
-                    Expanded(
-                      child: Text(
-                        "Arah Kiblat",
-                        style: GoogleFonts.inter(
-                          fontSize: 18,
-                          fontWeight: FontWeight.w700,
-                          color: textColor,
-                        ),
-                      ),
-                    ),
-                    Icon(Icons.arrow_forward_ios_rounded, color: primaryAccent),
-                  ],
-                ),
-              ),
-            ),
-            SizedBox(height: 16),
 
             // --- DAFTAR JADWAL HARI INI ---
             Padding(
@@ -317,7 +418,48 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  // --- (Widget Kartu 1 & 2 tidak berubah) ---
+  Widget _buildIconWithLabel({
+    required IconData icon,
+    required String label,
+    required VoidCallback onTap,
+    required String tooltip,
+    required String semanticLabel,
+    required Color color,
+  }) {
+    // compact icon with vertical label
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 6.0),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Semantics(
+              label: semanticLabel,
+              button: true,
+              child: Tooltip(
+                message: tooltip,
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: color.withOpacity(0.08),
+                    shape: BoxShape.circle,
+                  ),
+                  padding: const EdgeInsets.all(8),
+                  child: Icon(icon, color: color, size: 22),
+                ),
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(label,
+                style: GoogleFonts.inter(
+                    fontSize: 11, fontWeight: FontWeight.w600, color: color)),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildCountdownCard(
       PrayerProvider prayerProvider,
       String name,
@@ -326,7 +468,6 @@ class _HomeScreenState extends State<HomeScreen> {
       Color primaryAccent,
       Color secondaryAccent) {
     return Container(
-      // ... (kode tidak berubah) ...
       margin: const EdgeInsets.symmetric(horizontal: 6.0),
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -349,19 +490,20 @@ class _HomeScreenState extends State<HomeScreen> {
         children: [
           Text('Sholat Selanjutnya:',
               style: GoogleFonts.inter(
-                  color: Colors.white.withOpacity(0.8),
-                  fontSize: 16,
+                  color: Colors.white.withOpacity(0.9),
+                  fontSize: 14,
                   fontWeight: FontWeight.w500)),
+          const SizedBox(height: 6),
           Text('$name ($time)',
               style: GoogleFonts.inter(
                   color: Colors.white,
-                  fontSize: 24,
+                  fontSize: 22,
                   fontWeight: FontWeight.bold)),
-          const SizedBox(height: 10),
+          const SizedBox(height: 8),
           Text(countdown,
               style: GoogleFonts.inter(
                   color: Colors.white,
-                  fontSize: 40,
+                  fontSize: 36,
                   fontWeight: FontWeight.w800,
                   fontFeatures: [const FontFeature.tabularFigures()])),
         ],
@@ -371,112 +513,77 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Widget _buildLocationCard(PrayerProvider prayerProvider, Color textColor,
       Color secondaryTextColor, Color cardColor) {
-    return Container(
-      // ... (kode tidak berubah) ...
+    final title = 'Lokasi Anda Saat Ini:';
+    final city = prayerProvider.currentCity;
+    final masehi = prayerProvider.masehiDateString;
+    final hijri = prayerProvider.hijriDateString;
+
+    // Animated visual feedback when location is updated
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 450),
+      curve: Curves.easeOut,
       margin: const EdgeInsets.symmetric(horizontal: 6.0),
       padding: const EdgeInsets.all(16.0),
       decoration: BoxDecoration(
-        color: cardColor,
+        color: _locationUpdated
+            ? cardColor.withOpacity(0.95)
+            : cardColor, // slightly brighter when updated
         borderRadius: BorderRadius.circular(16),
+        boxShadow: _locationUpdated
+            ? [
+                BoxShadow(
+                    color: Theme.of(context).primaryColor.withOpacity(0.15),
+                    blurRadius: 12,
+                    offset: const Offset(0, 6))
+              ]
+            : null,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Text('Lokasi Anda Saat Ini:',
+          Text(title,
               style: GoogleFonts.inter(
                   color: secondaryTextColor,
-                  fontSize: 14,
+                  fontSize: 13,
                   fontWeight: FontWeight.w500)),
-          const SizedBox(height: 4),
-          Text(prayerProvider.currentCity,
+          const SizedBox(height: 6),
+          // animated city transition so user feels the change
+          AnimatedSwitcher(
+            duration: const Duration(milliseconds: 400),
+            transitionBuilder: (child, animation) {
+              final offsetAnimation =
+                  Tween<Offset>(begin: const Offset(0, 0.12), end: Offset.zero)
+                      .animate(animation);
+              return SlideTransition(position: offsetAnimation, child: child);
+            },
+            child: Text(
+              city,
+              key: ValueKey<String>(city),
               style: GoogleFonts.inter(
-                  color: textColor, fontSize: 22, fontWeight: FontWeight.bold),
-              overflow: TextOverflow.ellipsis),
+                  color: textColor, fontSize: 20, fontWeight: FontWeight.bold),
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
           const SizedBox(height: 12),
-          Text(prayerProvider.masehiDateString,
+          Text(masehi,
               style: GoogleFonts.inter(
                   color: secondaryTextColor,
-                  fontSize: 14,
+                  fontSize: 13,
                   fontWeight: FontWeight.w500)),
-          Text(prayerProvider.hijriDateString,
+          Text(hijri,
               style: GoogleFonts.inter(
                   color: secondaryTextColor,
-                  fontSize: 14,
+                  fontSize: 13,
                   fontWeight: FontWeight.w500)),
         ],
       ),
     );
   }
 
-  // --- WIDGET JAM DUNIA DIPERBARUI ---
-  // Parameter ketiga diubah dari 'imageUrl' menjadi 'assetPath'
-  Widget _buildWorldClockCard(String title, String time, String assetPath) {
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 6.0),
-      clipBehavior: Clip.antiAlias,
-      decoration: BoxDecoration(
-        color: Colors.black, // Fallback jika path aset salah
-        borderRadius: BorderRadius.circular(16),
-        // --- 1. UBAH 'NetworkImage' MENJADI 'AssetImage' ---
-        image: DecorationImage(
-          image: AssetImage(assetPath), // <-- INI PERUBAHANNYA
-          fit: BoxFit.cover,
-        ),
-      ),
-      // --- 2. 'Scrim' dan Teks tetap sama ---
-      child: Container(
-        padding: const EdgeInsets.all(16.0),
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            colors: [
-              Colors.black.withOpacity(0.6),
-              Colors.black.withOpacity(0.2)
-            ],
-            begin: Alignment.bottomCenter,
-            end: Alignment.topCenter,
-          ),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Text(
-              title,
-              style: GoogleFonts.inter(
-                color: Colors.white,
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-                shadows: [
-                  Shadow(blurRadius: 2, color: Colors.black.withOpacity(0.5))
-                ],
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              time,
-              style: GoogleFonts.inter(
-                color: Colors.white,
-                fontSize: 36,
-                fontWeight: FontWeight.w600,
-                fontFeatures: [const FontFeature.tabularFigures()],
-                shadows: [
-                  Shadow(blurRadius: 2, color: Colors.black.withOpacity(0.5))
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-  // --- AKHIR PERUBAHAN ---
-
-  // --- (Widget Daftar Sholat tidak berubah) ---
   Widget _buildTodayScheduleList(PrayerTimes prayerTimes, Color cardColor,
       Color textColor, Color secondaryTextColor, Color timeColor) {
     return Container(
-      // ... (kode tidak berubah) ...
       decoration: BoxDecoration(
         color: cardColor,
         borderRadius: BorderRadius.circular(16),
@@ -505,8 +612,7 @@ class _HomeScreenState extends State<HomeScreen> {
       Color textColor, Color timeColor, Color secondaryTextColor,
       {bool isLast = false}) {
     return Container(
-      // ... (kode tidak berubah) ...
-      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 20.0),
+      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 18.0),
       decoration: BoxDecoration(
         border: isLast
             ? null
