@@ -1,6 +1,6 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
-import 'package:geolocator/geolocator.dart';
+//import 'package:geolocator/geolocator.dart';
 import 'package:geocoding/geocoding.dart';
 import '../models/prayer_times_model.dart';
 // --- 1. IMPORT MODEL QURAN BARU ---
@@ -9,8 +9,7 @@ import '../models/surah_detail_model.dart';
 
 class ApiService {
   // --- (API Sholat dan Kurs tidak berubah) ---
-  final String _apiPrayerBaseUrl =
-      'https://api.aladhan.com/v1/timingsByCity';
+  final String _apiPrayerBaseUrl = 'https://api.aladhan.com/v1/timingsByCity';
   final String _apiPrayerByCoordsBaseUrl = 'https://api.aladhan.com/v1/timings';
   final String _apiExchangeKey = 'eea3a68781f1554c926bb5e3';
   late final String _apiExchangeBaseUrl;
@@ -26,7 +25,8 @@ class ApiService {
   // --- (Fungsi Sholat tidak berubah) ---
   Future<PrayerTimes> fetchPrayerTimesByCity(String city) async {
     // ... (kode aman 'fromJson' sudah ada) ...
-    final response = await http.get(Uri.parse('$_apiPrayerBaseUrl?city=$city&country=ID'));
+    final response =
+        await http.get(Uri.parse('$_apiPrayerBaseUrl?city=$city&country=ID'));
     if (response.statusCode == 200) {
       final data = json.decode(response.body);
       try {
@@ -48,7 +48,8 @@ class ApiService {
   Future<Map<String, dynamic>> fetchPrayerTimesByCoordinates(
       double latitude, double longitude) async {
     // ... (kode LBS yang sudah diperbaiki ada di sini) ...
-    final response = await http.get(Uri.parse('$_apiPrayerByCoordsBaseUrl?latitude=$latitude&longitude=$longitude'));
+    final response = await http.get(Uri.parse(
+        '$_apiPrayerByCoordsBaseUrl?latitude=$latitude&longitude=$longitude'));
     if (response.statusCode == 200) {
       final data = json.decode(response.body);
       try {
@@ -56,13 +57,16 @@ class ApiService {
           final timings = PrayerTimes.fromJson(data['data']['timings']);
           String locationName;
           try {
-            List<Placemark> placemarks = await placemarkFromCoordinates(latitude, longitude);
-            locationName = placemarks.first.subAdministrativeArea ?? placemarks.first.administrativeArea ?? 'Lokasi Tidak Dikenal';
+            List<Placemark> placemarks =
+                await placemarkFromCoordinates(latitude, longitude);
+            locationName = placemarks.first.subAdministrativeArea ??
+                placemarks.first.administrativeArea ??
+                'Lokasi Tidak Dikenal';
             locationName = locationName.replaceFirst('Kabupaten ', '');
           } catch (e) {
             try {
               String city = data['data']['meta']['timezone'];
-              locationName = city.split('/').last.replaceAll('_', ' '); 
+              locationName = city.split('/').last.replaceAll('_', ' ');
             } catch (e2) {
               locationName = "Lokasi Saat Ini";
             }
@@ -89,7 +93,13 @@ class ApiService {
       if (data['result'] == 'success') {
         final rates = data['conversion_rates'] as Map<String, dynamic>;
         final Map<String, double> filteredRates = {};
-        final List<String> wantedCurrencies = ['IDR', 'USD', 'MYR', 'KRW', 'JPY'];
+        final List<String> wantedCurrencies = [
+          'IDR',
+          'USD',
+          'MYR',
+          'KRW',
+          'JPY'
+        ];
         rates.forEach((key, value) {
           if (wantedCurrencies.contains(key)) {
             filteredRates[key] = value.toDouble();
@@ -105,11 +115,11 @@ class ApiService {
   }
 
   // --- 3. FUNGSI QURAN BARU ---
-  
+
   // Mengambil daftar 114 Surah
   Future<List<Surah>> getDaftarSurah() async {
     final response = await http.get(Uri.parse('$_apiQuranBaseUrl/surat'));
-    
+
     if (response.statusCode == 200) {
       final data = json.decode(response.body);
       if (data['data'] != null) {
@@ -125,8 +135,9 @@ class ApiService {
 
   // Mengambil detail 1 Surah (lengkap dengan ayat & terjemahan)
   Future<SurahDetail> getDetailSurah(int nomor) async {
-    final response = await http.get(Uri.parse('$_apiQuranBaseUrl/surat/$nomor'));
-    
+    final response =
+        await http.get(Uri.parse('$_apiQuranBaseUrl/surat/$nomor'));
+
     if (response.statusCode == 200) {
       final data = json.decode(response.body);
       if (data['data'] != null) {

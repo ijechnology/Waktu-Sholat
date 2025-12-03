@@ -30,7 +30,7 @@ class PrayerProvider with ChangeNotifier {
   // --- 5. DATA WAKTU BARU (Dipindah ke sini) ---
   late Timer _timer;
   final DateFormat _timeFormatter = DateFormat('HH:mm:ss');
-  final DateFormat _dateFormatter = DateFormat('EEE, dd MMM', 'id_ID');
+  //final DateFormat _dateFormatter = DateFormat('EEE, dd MMM', 'id_ID');
 
   DateTime _currentTime = DateTime.now();
   DateTime get currentTime => _currentTime;
@@ -50,7 +50,7 @@ class PrayerProvider with ChangeNotifier {
   PrayerProvider() {
     // Inisialisasi Timezone
     tz.initializeTimeZones();
-    
+
     // Panggil fungsi sholat (default)
     fetchPrayerTimesByCity(_currentCity);
 
@@ -68,11 +68,13 @@ class PrayerProvider with ChangeNotifier {
       final wibLocation = tz.getLocation('Asia/Jakarta');
       final wibNow = tz.TZDateTime.now(wibLocation);
       _currentTime = wibNow; // Simpan waktu saat ini
-      
+
       // Update data tanggal
-      _masehiDateString = DateFormat('EEEE, dd MMMM yyyy', 'id_ID').format(wibNow);
-      _hijriDateString = HijriCalendar.fromDate(wibNow).toFormat("dd MMMM yyyy H");
-      
+      _masehiDateString =
+          DateFormat('EEEE, dd MMMM yyyy', 'id_ID').format(wibNow);
+      _hijriDateString =
+          HijriCalendar.fromDate(wibNow).toFormat("dd MMMM yyyy H");
+
       // Update 4 Jam Dunia
       wibTime = _timeFormatter.format(wibNow);
 
@@ -86,18 +88,17 @@ class PrayerProvider with ChangeNotifier {
       londonTime = _timeFormatter.format(tz.TZDateTime.now(londonLocation));
 
       notifyListeners(); // Beritahu UI (terutama countdown)
-    
     } catch (e) {
       print("Error updating time: $e");
     }
   }
   // --- AKHIR FUNGSI BARU ---
-  
+
   // --- (Fungsi fetchPrayerTimes & LBS tidak berubah) ---
   Future<void> fetchPrayerTimesByCity(String city) async {
     _isLoading = true;
     _errorMessage = null;
-    _currentCity = city; 
+    _currentCity = city;
     notifyListeners();
     try {
       final data = await _apiService.fetchPrayerTimesByCity(city);
@@ -123,7 +124,8 @@ class PrayerProvider with ChangeNotifier {
         }
       }
       if (permission == LocationPermission.deniedForever) {
-        throw Exception('Izin lokasi ditolak permanen. Buka pengaturan aplikasi.');
+        throw Exception(
+            'Izin lokasi ditolak permanen. Buka pengaturan aplikasi.');
       }
       Position position = await Geolocator.getCurrentPosition(
           desiredAccuracy: LocationAccuracy.high);

@@ -93,7 +93,7 @@ class AuthProvider with ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> updateAvatar(String path) async {
+  Future<void> updateAvatar(String? path) async {
     if (_username == null) return;
 
     bool ok = await _authService.updateAvatar(_username!, path);
@@ -110,5 +110,10 @@ class AuthProvider with ChangeNotifier {
     if (!ok) return "Password lama salah";
 
     return null; // null artinya sukses
+  }
+
+  // Tambahkan helper khusus untuk hapus (opsional, biar lebih jelas)
+  Future<void> deleteAvatar() async {
+    await updateAvatar(null);
   }
 }

@@ -84,6 +84,41 @@ class AboutScreen extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 10),
+
+            // --- Bagian Developer 2---
+            Row(
+              children: [
+                CircleAvatar(
+                  radius: 30,
+                  backgroundColor:
+                      Theme.of(context).primaryColor.withOpacity(0.1),
+                  child: Image.asset('assets/images/foto_developer2.jpg'),
+                ),
+                const SizedBox(width: 16),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Nurul Izzah',
+                      style: GoogleFonts.inter(
+                        color: textColor,
+                        fontSize: 18,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    Text(
+                      'Sistem Informasi || 124230071',
+                      style: GoogleFonts.inter(
+                        color: secondaryTextColor,
+                        fontSize: 15,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+
             Text(
               'Semoga aplikasi ini dapat bermanfaat, love.',
               style: GoogleFonts.inter(

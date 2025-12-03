@@ -13,14 +13,12 @@ class AuthService {
     return await Hive.openBox('session');
   }
 
-  // Fungsi untuk hash password
   String _hashPassword(String password) {
     var bytes = utf8.encode(password);
     var digest = sha256.convert(bytes);
     return digest.toString();
   }
 
-  // Fungsi ini dipanggil oleh AuthProvider saat app start
   Future<String?> checkSession() async {
     final box = await _openSessionBox();
     return box.get('username');
@@ -30,14 +28,27 @@ class AuthService {
     final box = await _openUserBox();
     final sessionBox = await _openSessionBox();
 
-    String hashedPassword = _hashPassword(password);
-    if (box.containsKey(username) && box.get(username) == hashedPassword) {
+    if (!box.containsKey(username)) return false;
+
+    final userData = box.get(username);
+    String inputHash = _hashPassword(password);
+
+    // Cek jika data masih format lama (String) atau format baru (Map)
+    String storedHash;
+    if (userData is String) {
+      storedHash = userData;
+    } else {
+      storedHash = userData['password'];
+    }
+
+    if (storedHash == inputHash) {
       await sessionBox.put('username', username);
       return true;
     }
     return false;
   }
 
+  // UPDATE 1: Register langsung simpan sebagai Map agar konsisten
   Future<bool> register(String username, String password) async {
     final box = await _openUserBox();
 
@@ -45,7 +56,12 @@ class AuthService {
       return false;
     }
     String hashedPassword = _hashPassword(password);
-    await box.put(username, hashedPassword);
+
+    // Simpan sebagai Map, avatar default null (kosong)
+    await box.put(username, {
+      "password": hashedPassword,
+      "avatar": null,
+    });
     return true;
   }
 
@@ -54,37 +70,31 @@ class AuthService {
     await box.delete('username');
   }
 
+  // ... (updateUsername tetap sama) ...
   Future<bool> updateUsername(String oldUsername, String newUsername) async {
     final box = await _openUserBox();
     final sessionBox = await _openSessionBox();
 
-    // Jika username baru sudah ada → gagal
-    if (box.containsKey(newUsername)) {
-      return false;
-    }
+    if (box.containsKey(newUsername)) return false;
 
-    // Ambil password lama
-    final oldPasswordHash = box.get(oldUsername);
+    final oldData = box.get(oldUsername);
 
-    // Hapus key lama, buat key baru
     await box.delete(oldUsername);
-    await box.put(newUsername, oldPasswordHash);
-
-    // Update session
+    await box.put(newUsername, oldData); // Pindahkan data lama ke key baru
     await sessionBox.put('username', newUsername);
 
     return true;
   }
 
-  Future<bool> updateAvatar(String username, String imagePath) async {
+  // UPDATE 2: Parameter imagePath jadi nullable (String?) untuk fitur hapus
+  Future<bool> updateAvatar(String username, String? imagePath) async {
     final box = await _openUserBox();
-
     final userData = box.get(username);
+
     if (userData == null) return false;
 
-    // userData bisa berupa hash password saja → ubah jadi Map
+    // Migrasi data lama (String) ke Map jika perlu
     if (userData is String) {
-      // convert: { "password": hashedPassword }
       await box.put(username, {
         "password": userData,
         "avatar": imagePath,
@@ -92,8 +102,12 @@ class AuthService {
       return true;
     }
 
-    userData["avatar"] = imagePath;
-    await box.put(username, userData);
+    // Update avatar di Map yang sudah ada
+    // Kita harus clone map agar hive mendeteksi perubahan jika objectnya sama
+    final newUserData = Map<String, dynamic>.from(userData as Map);
+    newUserData["avatar"] = imagePath;
+
+    await box.put(username, newUserData);
     return true;
   }
 
@@ -102,25 +116,22 @@ class AuthService {
     final userData = box.get(username);
 
     if (userData is Map && userData.containsKey("avatar")) {
-      return userData["avatar"];
+      return userData["avatar"]; // Bisa return null jika emang null
     }
     return null;
   }
 
+  // ... (updatePassword tetap sama, pastikan ambil userData['password'] dgn benar) ...
   Future<bool> updatePassword(
       String username, String oldPass, String newPass) async {
     final box = await _openUserBox();
-
     if (!box.containsKey(username)) return false;
 
     final userData = box.get(username);
-
     String hashedOld = _hashPassword(oldPass);
 
-    // Jika format awal masih "password only"
     if (userData is String) {
       if (userData != hashedOld) return false;
-
       await box.put(username, {
         "password": _hashPassword(newPass),
         "avatar": null,
@@ -128,11 +139,12 @@ class AuthService {
       return true;
     }
 
-    // Jika data sudah Map
     if (userData["password"] != hashedOld) return false;
 
-    userData["password"] = _hashPassword(newPass);
-    await box.put(username, userData);
+    final newUserData = Map<String, dynamic>.from(userData as Map);
+    newUserData["password"] = _hashPassword(newPass);
+
+    await box.put(username, newUserData);
 
     return true;
   }
